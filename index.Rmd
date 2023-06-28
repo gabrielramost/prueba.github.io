@@ -1,0 +1,169 @@
+---
+title: "E3-Estadística 2"
+date: "2023-06-02"
+Nombre del grupo: "Hamil y tres más"
+
+Jefe de práctica: "Gabriel Ramos"
+Profesor: "José Magallanes"
+Curso: "Estadística para el Análisis Político 2"
+output:
+  rmdformats::downcute
+---
+
+```{r}
+library(rmdformats)
+```
+
+
+1. Objetivo de la técnica aplicada: Detalle el objetivo de la técnica aplicada, y por qué eligió esta técnica.
+
+La problemática de pobreza extrema abordada en este trabajo cuantitativo implica la consideración de ciertas variables independientes que contribuyen a la explicación del tema elegido donde la elección de técnicas idóneas para coadyuvar a este proceso examinador resultan cruciales en los objetivos planteados. Por ello, la utilización de la técnica de análisis factorial exploratorio permitirá identificar estructuras subyacentes y factores latentes donde la selección de variables esenciales en contraste con el trabajo de una mayor cantidad de las mismas posibilita la intepretación de los resultados mostrados. Debido al caso de estudio elegido, la problemática de pobreza extrema, resulta viable utilizar este tipo de técnica ante la gran variedad de variables que inciden en la explicación de este problema: acceso educativo, desnutrición, acceso al internet, líneas telefónicas, etc. En consecuencia, reducir este considerable numero de variables en aquellas que posean un mayor grado de explicabilidad y organizarlas en factores para determinar su incidencia de asociación con estos permitirán una adecuada visualización de las variables con mayor importancia y, por ende, contribuir a la generación de nuevas hipótesis en beneficios de la situación estudiada.
+
+
+
+2. Procedimientos aplicados y resultados obtenidos: Explique los procedimientos
+aplicados en la técnica (paso a paso): pruebas de hipótesis, requisitos y/o diagnósticos que ha seguido según corresponda. Por cada procedimiento aplicado explique el resultado obtenido. Se valorará el uso de gráficos según sea el caso. Recuerde que la interpretación no solo debe ser superficial.
+
+2.1 Instalación de paquetes necesarios para la AFE e importación de la base de datos utilizada
+```{r}
+library(rio)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(GGally)
+library(Hmisc)
+library(corrplot)
+library(PerformanceAnalytics)
+library(Rmisc)
+library(psych)
+data=import("https://docs.google.com/spreadsheets/d/1AfdMUBBIYEdnT4bwUVK3r-Uxvy7FUhtjkczcR1rqIEs/edit#gid=1279435937")
+```
+
+2.2 Preprocesamiento (Formateo de variables)
+
+```{r}
+names(data)
+```
+
+```{r}
+str(data)
+```
+Eliminación de columnas con variables categóricas o con caracteres del alfabeto español: creación de nuevo objeto con la data modificada.
+
+```{r}
+data1 <- subset(data, select = -c(1, 2,7,8))
+
+str(data1)
+```
+Conversión a numéricas de las variables restantes 
+```{r}
+data1$POR_POBRE=as.numeric(data1$POR_POBRE)
+data1$DES_CRONICA=as.numeric(data1$DES_CRONICA)
+data1$ESCU_INTER=as.numeric(data1$ESCU_INTER)
+data1$COMP_INT=as.numeric(data1$COMP_INT)
+data1$ACCA=as.numeric(data1$ACCA)
+data1$ASPR=as.numeric(data1$ASPR)
+data1$VMD=as.numeric(data1$VMD)
+data1$LINEA_TELEF=as.numeric(data1$LINEA_TELEF)
+data1$FREC_PATRULLAJE=as.numeric(data1$FREC_PATRULLAJE)
+data1$YI=as.numeric(data1$YI)
+data1$COMUNICA_DIGI =as.numeric(data1$COMUNICA_DIGI)
+
+```
+
+Eliminación de los NAs que dificultan el proceso de la técnica a utilizar
+
+```{r}
+
+data1<- na.omit(data1)
+
+str(data1)
+```
+
+2.3 Análisis factorial exploratorio
+
+Cálculo de matriz de correlación
+
+```{r}
+library(polycor)
+corMatrix=polycor::hetcor(data1)$correlations
+corMatrix
+
+```
+
+Matriz de correlación de forma gráfica.
+
+```{r}
+library(ggcorrplot)
+
+ggcorrplot(corMatrix)
+
+```
+De acuero al gráfico mostrado, existe un notable grado de correlación entre las variables principalmente aquellas que se relacionan en la diagonal central del gráfico. No obstante, resulta necesario reconocer que existen numerosas correlaciones que poseen un vínculo bastante reducido que podría afectar la AFE y una intepretación adecuada de los resultados a obtener.
+
+
+
+Cálculo del KMO para determinar si los datos permiten que la factorización resulte viable.
+
+```{r}
+library(psych)
+psych::KMO(corMatrix) 
+```
+Al ser el KMO producido de 0.71, la relación entre variables puede catalogarse de grado mediano. Sin embargo, ello no impide la realización de la EFA.
+
+
+
+La utilización de la prueba de esfericidad de Bartlett como filtro para garantizar la factorización a realizar y verificar si la matriz de correlaciones es adecuada 
+
+```{r}
+cortest.bartlett(corMatrix,n=nrow(data1))$p.value>0.05
+```
+Se ha rechazado la hipótesis de matriz identidad, ahora se verifica si la matriz de correlación actual representa una singular.
+
+```{r}
+library(matrixcalc)
+
+is.singular.matrix(corMatrix)
+```
+Con ambas pruebas realizadas se procede a determinar el número de factores necesarios para redimensionar la data. 
+
+```{r}
+fa.parallel(data1, fa = 'fa',correct = T,plot = F)
+```
+Redimensionamiento del número de factores con el grado de incidencia de cada variable en ellos (loadings).
+```{r}
+library(GPArotation)
+resfa <- fa(data1,
+            nfactors = 4,
+            cor = 'mixed',
+            rotate = "varimax",
+            fm="minres")
+print(resfa$loadings)
+```
+Se procede a mejorar los resultados obtenido como consecuencia de haber obtenido más de un factor.  
+```{r}
+print(resfa$loadings,cutoff = 0.5)
+```
+Por último, se proceden a visualizar, de forma gráfica, la incidencia de las variables en los factore establecidos.
+
+```{r}
+fa.diagram(resfa,main = "Resultados del EFA")
+```
+```{r}
+sort(resfa$communality)
+```
+```{r}
+sort(resfa$complexity)
+```
+
+INTERPRETACIÓN:De acuedo con el gráfico registrado, se puede concluir que tenemos 4 variables latentes. Asimismo, la variable que más aporta a los factores es "LINEA_TELEF" ( 0.8717431), y la variable que contibuye a mas de un factor es ESCU_INTER (2.53308), y existe una correlación directa y positiva.
+
+```{r}
+as.data.frame(resfa$scores)%>%head()
+```
+
+
+3. Conclusión. Concluya sobre los resultados obtenidos.
+
+En sintesis, el analisis factorial exploratorio nos permite agrupar todas nuestras variables en 4 variables latentes que permitan explicar de mejor manera la dependencIa con la pobreza en los servicios básicos en las provincias del Perú.     
+
